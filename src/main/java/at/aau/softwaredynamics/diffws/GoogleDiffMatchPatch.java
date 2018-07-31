@@ -57,7 +57,7 @@ public class GoogleDiffMatchPatch extends Differ {
     public DiffResult diff() {
         //TODO implement!
 
-       return new DiffResult(new Metrics(), diffFiles(1));
+        return new DiffResult(new Metrics(), diffFiles(1));
     }
 
 
@@ -66,7 +66,6 @@ public class GoogleDiffMatchPatch extends Differ {
     public ArrayList<Integer> getNewlinePos() {
         return newlinePos;
     }
-
 
 
     public List<Result> diffFiles(int cleanup) {
@@ -102,63 +101,128 @@ public class GoogleDiffMatchPatch extends Differ {
 
         int id = 0;
 
+        String usedSrcText = "";
+        String usedDstText = "";
+
         for (int i = 0; i < fullDiffSize; i++) {
 
             Result diffInfo;
             diffInfo = new Result();
 
 
-
             switch (fullDiff.get(i).operation) {
                 case EQUAL:
                     srcZeile += StringUtils.countMatches(fullDiff.get(i).text, "\n");
                     dstZeile += StringUtils.countMatches(fullDiff.get(i).text, "\n");
+
+                    usedSrcText += fullDiff.get(i).text;
+                    usedDstText += fullDiff.get(i).text;
                     break;
+
                 case DELETE:
+                    boolean zeileMehr;
+                    int lastNewlineDel;
+
+                    if (fullDiff.get(i).text.indexOf("\n") == 0) {
+                        dstZeile++;
+                        zeileMehr = true;
+                        if (usedDstText.length() == usedSrcText.lastIndexOf("\n") + 1) {
+                            lastNewlineDel = usedSrcText.lastIndexOf("\n");
+                        } else {
+                            lastNewlineDel = usedSrcText.length() - 1;
+                        }
+                    } else {
+                        zeileMehr = false;
+
+                        lastNewlineDel = usedSrcText.lastIndexOf("\n");
+                    }
 
                     diffInfo.setSrcStartLine(srcZeile);
-                    diffInfo.setSrcStartLineOffset(srcOffset);
+
+                    if (lastNewlineDel == -1) {
+                        lastNewlineDel = 0;
+                        diffInfo.setSrcStartLineOffset(usedSrcText.length() - lastNewlineDel);
+                    } else {
+                        diffInfo.setSrcStartLineOffset(usedSrcText.length() - lastNewlineDel - 1);
+                    }
+
+//                    srcZeile += StringUtils.countMatches(fullDiff.get(i).text, "\n");
+
                     diffInfo.setSrcEndLine(srcZeile);
 
-                    srcZeile += StringUtils.countMatches(fullDiff.get(i).text, "\n");
+                    diffInfo.setSrcEndLineOffset(usedSrcText.substring(lastNewlineDel + 1).length() + ((fullDiff.get(i).text.length() - StringUtils.countMatches(
+                                    fullDiff.get(i).text, "\n")
+                            )
+                    ) +1 );
 
-
-                    diffInfo.setSrcEndLineOffset(fullDiff.get(i).text.length() - StringUtils.countMatches(fullDiff.get(i).text, "\n"));
-
-                    // Anzahl der Zeichen hinter letztem \n = endlineOffset
 
 
                     diffInfo.setActionType("DELETE");
 
+                    diffInfo.setSrcId(id);
+
+                    id++;
+                    usedSrcText += fullDiff.get(i).text;
+
                     diffList.add(diffInfo);
                     break;
+
                 case INSERT:
+                    int lastNewlineIns;
 
-                    System.out.println("Insert wird gerade verwendet!");
+                    if (fullDiff.get(i).text.indexOf("\n") == 0) {
+                        dstZeile++;
+                        zeileMehr = true;
 
-                    diffInfo.setDstStartLine(srcZeile);
-                    diffInfo.setDstStartLineOffset(srcOffset);
+                        if (usedDstText.length() == usedDstText.lastIndexOf("\n") + 1) {
+                            lastNewlineIns = usedDstText.lastIndexOf("\n");
+                        } else {
+                            lastNewlineIns = usedDstText.length() - 1;
+                        }
+                    } else {
+                        zeileMehr = false;
 
-                    dstZeile += StringUtils.countMatches(fullDiff.get(i).text, "\n");
+                        lastNewlineIns = usedDstText.lastIndexOf("\n");
+                    }
+
+                    diffInfo.setDstStartLine(dstZeile);
+
+
+                    if (lastNewlineIns == -1) {
+                        lastNewlineIns = 0;
+                        diffInfo.setDstStartLineOffset(usedDstText.length() - lastNewlineIns);
+                    } else {
+                        diffInfo.setDstStartLineOffset(usedDstText.length() - lastNewlineIns - 1);
+                    }
+//                    diffInfo.setDstStartLineOffset(usedDstText.length() - lastNewlineIns - 1);
+
+
+//                    if (zeileMehr = false) {
+//                        dstZeile += StringUtils.countMatches(fullDiff.get(i).text, "\n");
+//                    }
+
 
                     diffInfo.setDstEndLine(dstZeile);
-                    diffInfo.setDstEndLineOffset(fullDiff.get(i).text.length() - StringUtils.countMatches(fullDiff.get(i).text, "\n"));
+
+                    diffInfo.setDstEndLineOffset(diffInfo.getDstStartLineOffset() + (fullDiff.get(i).text.length() - StringUtils.countMatches(fullDiff.get(i).text, "\n")));
 
                     diffInfo.setActionType("INSERT");
 
+                    diffInfo.setSrcId(id);
+
+                    id++;
+                    usedDstText += fullDiff.get(i).text;
+
                     diffList.add(diffInfo);
                     break;
+
                 default:
                     System.out.println("Failed to setActionType: DmpMain, Line ca. 103-113");
             }
 
-
-            diffInfo.setSrcId(i);
-
-
         }
 
-
+        System.out.println("GoogleDiffMatchPatch wird verwendet");
         return diffList;
     }
 
